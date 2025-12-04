@@ -1,7 +1,7 @@
 {
-  "name": "Python 3",
+  "name": "devcontainer-initial-app",
   "dockerComposeFile": "./docker-compose.yml",
-  "service": "python-app",
+  "service": "dev-initial-app",
   "workspaceFolder": "/app",
   // "postCreateCommand": "pip install -r requirements.txt",
   "remoteUser": "root",
@@ -10,7 +10,7 @@
       "settings": {
         "terminal.integrated.shell.linux": "/bin/bash"
       },
-      "extensions": ["ms-python.python"]
+      // "extensions": ["ms-python.python"]
     }
   }
 }

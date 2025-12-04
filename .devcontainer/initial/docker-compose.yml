@@ -5,7 +5,7 @@ services:
     build:
       context: ../../
       dockerfile: ./.devcontainer/initial/Dockerfile
-    image: my-python-app:latest
+    image: my-devcontainer-app:latest
     command: sleep infinity
     volumes:
       - ../../:/app

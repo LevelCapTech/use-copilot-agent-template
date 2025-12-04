@@ -1,5 +1,4 @@
-# 使用するベースイメージ
-FROM python:3
+FROM mcr.microsoft.com/vscode/devcontainers/base:ubuntu
 
 # OSのパッケージリストを更新
 RUN apt-get update
