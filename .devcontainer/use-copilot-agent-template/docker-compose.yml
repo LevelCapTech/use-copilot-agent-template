@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  devcontainer-service:
+    build:
+      context: ../../
+      dockerfile: .devcontainer/use-copilot-agent-template/Dockerfile
+    image: devcontainer-initial-app:latest
+    command: sleep infinity
+    volumes:
+      - ../../:/app
