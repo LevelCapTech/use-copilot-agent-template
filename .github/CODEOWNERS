@@ -5,10 +5,10 @@
 *.md @LevelCapTech
 
 # `/docker`ディレクトリ内の全てのファイルに対しては、`@LevelCapTech`がレビューします。
-/docker/ @LevelCapTech
+; /docker/ @LevelCapTech
 
 # 特定のファイル `requirements.txt` に対しては、`@LevelCapTech`がレビューします。
-requirements.txt @LevelCapTech
+; requirements.txt @LevelCapTech
 
 # `src/`ディレクトリ内の全てのファイルに対しては、`@LevelCapTech`がレビューします。
 /src/ @LevelCapTech
