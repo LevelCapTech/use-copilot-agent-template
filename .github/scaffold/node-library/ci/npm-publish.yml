@@ -1,0 +1,54 @@
+name: npm-publish (Trusted)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          registry-url: https://registry.npmjs.org
+      - run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+      - run: npm run build
+      # package.json の version は別途管理し、release タグと一致させる
+      - name: Validate tag version matches package.json
+        run: |
+          EXPECTED_VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION_PATTERN="^[0-9]+\.[0-9]+\.[0-9]+$"
+          if [[ ! "${EXPECTED_VERSION}" =~ ${VERSION_PATTERN} ]]; then
+            echo "Invalid tag format: ${GITHUB_REF}. Expected vX.Y.Z (e.g., v1.2.3)"
+            exit 1
+          fi
+          ACTUAL_VERSION=$(node -p "require('./package.json').version")
+          if [ "$EXPECTED_VERSION" != "$ACTUAL_VERSION" ]; then
+            echo "Version mismatch: tag=${EXPECTED_VERSION}, package.json=${ACTUAL_VERSION}"
+            exit 1
+          fi
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.0.6
+        with:
+          generate_release_notes: true
