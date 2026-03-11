@@ -1,0 +1,21 @@
+{
+  "plugins": ["markdown"],
+  "rules": {
+    "preset-ja-technical-writing": {
+      "ja-no-mixed-period": false,
+      "ja-no-redundant-expression": false,
+      "ja-no-successive-word": false,
+      "max-kanji-continuous-len": false,
+      "max-comma": false,
+      "max-ten": false,
+      "no-doubled-joshi": false,
+      "no-exclamation-question-mark": false,
+      "no-mix-dearu-desumasu": false,
+      "no-unmatched-pair": false,
+      "sentence-length": false
+    },
+    "prh": {
+      "rulePaths": ["prh.yml"]
+    }
+  }
+}

@@ -1,0 +1,40 @@
+name: ドキュメントlint（textlint/PR）
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "docs/**/*.md"
+      - ".github/**/*.md"
+      - "README.md"
+      - ".textlintrc"
+      - "prh.yml"
+      - ".textlintignore"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: textlint-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  textlint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Textlint
+        run: npm run lint:text

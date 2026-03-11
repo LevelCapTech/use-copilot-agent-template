@@ -1,0 +1,297 @@
+name: リリース（日付ベース）
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_date:
+        description: "Release date (JST, YYYY.MM.DD)"
+        required: true
+        type: string
+      enforce_commitlint:
+        description: "Enforce Conventional Commits with commitlint"
+        required: true
+        type: boolean
+        default: true
+      enforce_lint:
+        description: "Enforce lint (fail on lint errors). Set false to skip lint gate and allow release to proceed."
+        required: false
+        type: boolean
+        default: true
+      enforce_audit:
+        description: "Enforce npm audit (fail on vulnerabilities). Set false to skip audit gate and allow release to proceed."
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-date-${{ github.event.inputs.release_date }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_DATE: ${{ github.event.inputs.release_date }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify workflow commit
+        run: |
+          set -euo pipefail
+          head_sha=$(git rev-parse HEAD)
+          if [[ "${head_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "Workflow must run from HEAD. Expected ${GITHUB_SHA}, got ${head_sha}." >&2
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Validate release date
+        run: |
+          set -euo pipefail
+          if [[ -z "${RELEASE_DATE}" ]]; then
+            echo "release_date input is required." >&2
+            exit 1
+          fi
+          if [[ ! "${RELEASE_DATE}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+            echo "release_date must be in YYYY.MM.DD format." >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine release tag
+        id: release_meta
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          base_tag=$(git tag -l "${RELEASE_DATE}")
+          mapfile -t date_tags < <(git tag -l "${RELEASE_DATE}*")
+
+          if [[ -z "${base_tag}" ]]; then
+            next_tag="${RELEASE_DATE}"
+          else
+            regex_date=${RELEASE_DATE//./\\.}
+            suffixes=()
+            for tag in "${date_tags[@]}"; do
+              if [[ "${tag}" =~ ^${regex_date}-([0-9]+)$ ]]; then
+                suffixes+=("${BASH_REMATCH[1]}")
+              fi
+            done
+
+            next_suffix=2
+            while true; do
+              found=0
+              for suffix in "${suffixes[@]}"; do
+                if [[ "${suffix}" == "${next_suffix}" ]]; then
+                  found=1
+                  break
+                fi
+              done
+
+              if [[ "${found}" -eq 0 ]]; then
+                break
+              fi
+              next_suffix=$((next_suffix + 1))
+            done
+            next_tag="${RELEASE_DATE}-${next_suffix}"
+          fi
+
+          last_tag=$(git tag --sort=-creatordate | head -n 1 || true)
+          if [[ -z "${last_tag}" ]]; then
+            range_from=$(git rev-list --max-parents=0 HEAD | tail -n 1)
+          else
+            range_from="${last_tag}"
+          fi
+
+          echo "next_tag=${next_tag}" >> "${GITHUB_OUTPUT}"
+          echo "last_tag=${last_tag}" >> "${GITHUB_OUTPUT}"
+          echo "range_from=${range_from}" >> "${GITHUB_OUTPUT}"
+          echo "release_tag=${next_tag}"
+          if [[ -n "${last_tag}" ]]; then
+            echo "previous_tag=${last_tag}"
+          else
+            echo "previous_tag=none"
+          fi
+
+      - name: Verify tag and release do not exist
+        run: |
+          set -euo pipefail
+          tag="${{ steps.release_meta.outputs.next_tag }}"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists." >&2
+            exit 1
+          fi
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${tag} already exists." >&2
+            exit 1
+          fi
+
+      - name: Commitlint
+        if: ${{ github.event.inputs.enforce_commitlint == 'true' }}
+        run: |
+          set -euo pipefail
+          npx commitlint --from "${{ steps.release_meta.outputs.range_from }}" --to HEAD
+
+      - name: Lint
+        if: ${{ github.event.inputs.enforce_lint == 'true' }}
+        run: npm run lint
+
+      - name: Lint (warn-only)
+        if: ${{ github.event.inputs.enforce_lint != 'true' }}
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Security audit
+        if: ${{ github.event.inputs.enforce_audit == 'true' }}
+        run: npm audit
+
+      - name: Security audit (warn-only)
+        if: ${{ github.event.inputs.enforce_audit != 'true' }}
+        continue-on-error: true
+        run: npm audit
+
+      - name: Generate release notes
+        if: ${{ github.event.inputs.enforce_commitlint == 'true' }}
+        run: |
+          set -euo pipefail
+          range_from="${{ steps.release_meta.outputs.range_from }}"
+          npx conventional-changelog -p conventionalcommits -r 0 --tag-prefix '' -o release-notes.md -- "${range_from}..HEAD"
+      - name: Generate release notes (fallback)
+        if: ${{ github.event.inputs.enforce_commitlint != 'true' }}
+        run: |
+          set -euo pipefail
+          range_from="${{ steps.release_meta.outputs.range_from }}"
+          git log --pretty=format:"- %s (%h)" "${range_from}..HEAD" > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "- 変更履歴なし" > release-notes.md
+          fi
+
+      - name: Build standalone
+        run: npm run build
+
+      - name: Create bundle
+        run: |
+          set -euo pipefail
+          test -f .next/standalone/server.js
+          rm -rf bundle
+          mkdir -p bundle
+          cp -R .next/standalone/* bundle/
+          rm -rf bundle/.next
+          cp -R .next bundle/.next
+          rm -rf bundle/.next/cache
+          cp -R public bundle/public
+          cp package.json bundle/package.json
+          test -f bundle/server.js
+          tar -czf next-bundle.tgz -C bundle .
+
+      - name: Debug bundle and archive listing
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== bundle tree (top) ==="
+          ls -la bundle || true
+          echo "=== bundle find server.js ==="
+          find bundle -maxdepth 6 -type f -name 'server.js' -print -exec ls -la {} \; || true
+          echo "=== bundle tree (deeper) ==="
+          find bundle -maxdepth 4 -print | sed 's#^\./##' | sort | sed -n '1,400p'
+          echo "=== tar listing (head) ==="
+          tar -tzf next-bundle.tgz | sed -n '1,400p'
+          echo "=== tar grep server.js ==="
+          tar -tzf next-bundle.tgz | grep -nE 'server\.js$' || true
+          echo "=== tar grep package.json ==="
+          tar -tzf next-bundle.tgz | grep -nE 'package\.json$' || true
+
+      - name: Verify bundle archive
+        run: |
+          set -euo pipefail
+          tar -tzf next-bundle.tgz > bundle-listing.txt
+
+          require_entry() {
+            local pattern="$1"
+            local label="$2"
+            if ! grep -qE "${pattern}" bundle-listing.txt; then
+              echo "Bundle archive missing ${label}." >&2
+              exit 1
+            fi
+          }
+
+          require_entry '(^|\./)server\.js$' "server.js"
+          require_entry '(^|\./)package\.json$' "package.json"
+          require_entry '(^|\./)public/' "public/"
+          require_entry '(^|\./)\.next/static/' ".next/static/"
+          require_entry '(^|\./)\.next/BUILD_ID$' ".next/BUILD_ID"
+          require_entry '(^|\./)\.next/required-server-files\.json$' ".next/required-server-files.json"
+          require_entry '(^|\./)\.next/routes-manifest\.json$' ".next/routes-manifest.json"
+          require_entry '(^|\./)\.next/prerender-manifest\.json$' ".next/prerender-manifest.json"
+          require_entry '(^|\./)\.next/build-manifest\.json$' ".next/build-manifest.json"
+          require_entry '(^|\./)\.next/server/pages-manifest\.json$' ".next/server/pages-manifest.json"
+          require_entry '(^|\./)\.next/server/app-paths-manifest\.json$' ".next/server/app-paths-manifest.json"
+          require_entry '(^|\./)\.next/server/app/' ".next/server/app/"
+
+      - name: Create release and upload asset
+        run: |
+          set -euo pipefail
+          tag="${{ steps.release_meta.outputs.next_tag }}"
+
+          retry_command() {
+            local description="$1"
+            shift
+            local attempt=1
+            local output=""
+            local status=0
+
+            while true; do
+              set +e
+              output=$("$@" 2>&1)
+              status=$?
+              set -e
+
+              if [[ ${status} -eq 0 ]]; then
+                echo "${output}"
+                return 0
+              fi
+
+              if echo "${output}" | grep -E "HTTP 4[0-9]{2}|status 4[0-9]{2}" >/dev/null; then
+                # Treat HTTP 429 and rate limit / abuse-detection HTTP 403 as retryable.
+                if echo "${output}" | grep -E "HTTP 429|status 429" >/dev/null; then
+                  :
+                elif echo "${output}" | grep -E "HTTP 403|status 403" >/dev/null && \
+                     echo "${output}" | grep -Ei "rate limit|abuse" >/dev/null; then
+                  :
+                else
+                  echo "${output}"
+                  echo "${description} failed with 4xx; no retry." >&2
+                  return ${status}
+                fi
+              fi
+
+              if [[ ${attempt} -ge 3 ]]; then
+                echo "${output}"
+                echo "${description} failed after ${attempt} attempts." >&2
+                return ${status}
+              fi
+
+              attempt=$((attempt + 1))
+              echo "${description} failed; retrying (${attempt}/3)..." >&2
+              sleep 5
+            done
+          }
+
+          retry_command "Release create" gh release create "${tag}" --title "${tag}" --notes-file release-notes.md --target "${GITHUB_SHA}"
+          retry_command "Release upload" gh release upload "${tag}" next-bundle.tgz

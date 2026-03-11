@@ -23,6 +23,13 @@ flowchart TD
 - 仕様の更新・判断根拠: `.github/copilot/` と `70-adr/`
 - 実務上の禁止事項・コマンド: `.github/instructions/`（パス適用）
 - 実装・テスト計画: `80-templates/implementation-plan.md`
+- レビュー本文（人間向け）: `.github/PULL_REQUEST_TEMPLATE/*.md`
+
+
+## テンプレートの役割分離
+- PRテンプレートは「人間レビューのための説明」を記録する。
+- `80-templates/implementation-plan.md` は「設計Agentから製造Agentへの実装仕様引き渡し」を記録する。
+- IMPLEMENT フェーズでは、確定 plan Markdown を一次入力として実装し、プロンプトに仕様全文の再記載を要求しない。
 
 ## 依存と適用範囲
 - すべてのタスクは `00-index.md` の参照順を守る。
@@ -31,6 +38,8 @@ flowchart TD
 ## Issue 運用ルール
 - Copilot を Issue にアサインする前に、必要な要件は本文へすべて記載する（アサイン後のコメントは認識されないため、追記は PR コメントで渡す）。
 - 設計と実装の Issue は分離し、設計 Issue はドキュメントのみの PR、実装 Issue は確定 plan のパスを明示してその範囲に限定する。
+- 設計 Issue の plan では、設計行為そのものをゴール/要件にしない。実装で変化する機能/画面/API/データ契約のみを対象化する。
+- 設計 Issue の要件は、実装後に観測できる受入条件（テスト可能）で固定し、実装 Issue ではその plan Markdown を一次入力として実装する。
 - 不確実性解消のために **[RESEARCH]** Issue を設け、コード変更禁止を基本とする（成果物は docs/research や Issue/PR コメントに集約し、結論は ADR/Requirements へ昇格させてから Design に渡す）。
 - 仕様参照を避けたい場合は、任意フェーズの Issue に付与できるモディファイアとして **[BLIND]** を用いる。本文に必要情報を埋め込み、参照禁止範囲と変更可否を明示する。成果物は最小差分かつ本文完結とする。
 - 推奨する最小セット: `[RESEARCH]`（調査のみ）、`[DESIGN]`（plan確定）、`[IMPLEMENT]`（plan通り実装）、`[BLIND]`（任意フェーズに付与可能な仕様参照抑制モディファイア）。

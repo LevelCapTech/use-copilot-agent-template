@@ -1,0 +1,65 @@
+name: インフラシェル監査
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-shell-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  infra-shell-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Collect target scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=$'\n\t'
+
+          mapfile -d '' -t files < <(find infra -type f -print0)
+          targets=()
+          for file in "${files[@]}"; do
+            if [[ "$file" == *.sh ]]; then
+              targets+=("$file")
+            elif [[ "$(head -n 1 "$file")" == "#!/usr/bin/env bash" ]]; then
+              targets+=("$file")
+            fi
+          done
+
+          if ((${#targets[@]} == 0)); then
+            : > /tmp/infra-shell-targets.txt
+          else
+            printf '%s\n' "${targets[@]}" | sort -u > /tmp/infra-shell-targets.txt
+          fi
+          if [[ ! -s /tmp/infra-shell-targets.txt ]]; then
+            echo "No infra bash scripts found."
+          fi
+
+      - name: Bash syntax check (bash -n)
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            bash -n "$file"
+          done < /tmp/infra-shell-targets.txt
+
+      - name: ShellCheck (bash)
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            shellcheck -s bash "$file"
+          done < /tmp/infra-shell-targets.txt

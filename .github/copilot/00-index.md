@@ -26,6 +26,11 @@
   - IMPLEMENT PR → [.github/PULL_REQUEST_TEMPLATE/implement.md](../PULL_REQUEST_TEMPLATE/implement.md)
   - RESEARCH PR → [.github/PULL_REQUEST_TEMPLATE/research.md](../PULL_REQUEST_TEMPLATE/research.md)
   - BLIND PR → [.github/PULL_REQUEST_TEMPLATE/blind.md](../PULL_REQUEST_TEMPLATE/blind.md)
+- テンプレートの役割を混在させないこと：
+  - PRテンプレート（`.github/PULL_REQUEST_TEMPLATE/*.md`）は人間レビュー用の説明フォーマットとして使う。
+  - `80-templates/implementation-plan.md` は設計Agentから製造Agentへの引き渡し仕様として使う。
+  - IMPLEMENT Issue の製造時は、確定した plan Markdown を一次入力（主入力）として実装する。
+- DIP固定ルールはテンプレートではなく SSOT を正とする。詳細は `copilot-instructions.md` と `20-architecture.md` を参照する。
 - **設計フェーズ (Phase A)**: `80-templates/implementation-plan.md` に沿って plan を作成し、`10-60` の仕様を満たすこと。
 - **実装フェーズ (Phase B)**: 確定 plan の範囲内で実装し、`60-ci-quality-gates.md` の品質ゲートを通過させること。
 - 仕様変更・追記は本ディレクトリに集約し、重複や分散を避ける。

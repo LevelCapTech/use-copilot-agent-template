@@ -1,0 +1,91 @@
+name: CI（Next.js 基本ゲート / Node 24）
+
+on:
+  pull_request:
+    paths-ignore:
+      - "mock/**"
+      - "**/*.md"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "mock/**"
+      - "**/*.md"
+  workflow_dispatch:
+    inputs:
+      runTests:
+        description: "Run tests"
+        required: false
+        default: "true"
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nextjs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stylelint-generated-css:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Fetch through merge-base
+        if: github.event_name == 'pull_request'
+        uses: fulcrumgenomics/fetch-through-merge-base@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build generated CSS
+        run: |
+          mkdir -p .ci-artifacts
+          npx tailwindcss -i app/globals.css -o .ci-artifacts/generated.css --minify
+
+      - name: Run stylelint on generated CSS
+        run: |
+          npx stylelint .ci-artifacts/generated.css || {
+            echo "STYLE_LINT_FAILED: .ci-artifacts/generated.css を確認し、app/globals.css と Tailwind レイヤー定義から逆引きしてください。"
+            exit 1
+          }
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RUN_TESTS: ${{ github.event.inputs.runTests || 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Fetch through merge-base
+        if: github.event_name == 'pull_request'
+        uses: fulcrumgenomics/fetch-through-merge-base@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test

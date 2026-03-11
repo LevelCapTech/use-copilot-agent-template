@@ -196,9 +196,11 @@ AIが生成したコード（生成物）の利用方法を下記のテーブル
 * フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
 * フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
 * フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
+* フィードバック（要約）：<<feedback>>　対応（何を変えた）：<<action>>　対象（ファイル/行/Commit）：<<target>>　状態（対応済/保留/却下）：<<status>>
 
-## 既存ログ（前回まで）
-
-```text
-<<keep_existing_lines>>
-```

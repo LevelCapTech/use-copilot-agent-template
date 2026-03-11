@@ -1,0 +1,120 @@
+name: CI（UI/UX Storybookゲート）
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      runChromatic:
+        description: "Run Chromatic publish"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uiux-storybook-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  storybook-gate:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, '📕 UI/UX'))
+    runs-on: ubuntu-latest
+    env:
+      RUN_CHROMATIC: ${{ github.event_name == 'workflow_dispatch' && inputs.runChromatic || github.event_name == 'pull_request' && 'true' || 'false' }}
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Fetch through merge-base
+        if: github.event_name == 'pull_request'
+        uses: fulcrumgenomics/fetch-through-merge-base@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Playwright browsers cache
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: playwright-${{ runner.os }}-uiux-storybook-browsers
+          restore-keys: |
+            playwright-${{ runner.os }}-uiux-storybook-browsers
+
+      - name: Report Playwright browsers cache
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Playwright cache hit"
+          else
+            echo "Playwright cache miss"
+          fi
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
+      - name: Build Storybook
+        run: npm run build-storybook
+
+      - name: Test Storybook stories
+        run: |
+          set -e
+          python -m http.server 6006 --directory storybook-static --bind 127.0.0.1 &
+          STORYBOOK_PID=$!
+          trap "kill $STORYBOOK_PID" EXIT
+          MAX_RETRIES=10
+          for i in $(seq 1 $MAX_RETRIES); do
+            if curl -fs http://127.0.0.1:6006 > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -fs http://127.0.0.1:6006 > /dev/null; then
+            echo "Storybook server did not become ready on port 6006 after ${MAX_RETRIES} attempts. Check for port conflicts or server startup issues."
+            exit 1
+          fi
+          echo "Storybook server ready. Running Storybook tests..."
+          npx test-storybook --url http://127.0.0.1:6006 || { echo "Storybook tests failed."; exit 1; }
+        shell: bash
+
+      - name: Publish to Chromatic
+        if: env.RUN_CHROMATIC == 'true' && env.CHROMATIC_PROJECT_TOKEN != ''
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        uses: chromaui/action@v15
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          exitOnceUploaded: true
+
+      - name: Report Playwright cache status (post)
+        if: always()
+        run: |
+          echo "Playwright cache path: $PLAYWRIGHT_BROWSERS_PATH"
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Playwright cache hit on restore"
+          else
+            echo "Playwright cache miss on restore"
+          fi
+          if [ -d "$PLAYWRIGHT_BROWSERS_PATH" ]; then
+            echo "Playwright cache size: $(du -sh "$PLAYWRIGHT_BROWSERS_PATH" | cut -f1)"
+            if [ "$(find "$PLAYWRIGHT_BROWSERS_PATH" -type f | head -n 1)" ]; then
+              echo "Playwright cache files detected"
+            else
+              echo "Playwright cache directory is empty"
+            fi
+          else
+            echo "Playwright cache directory missing"
+          fi

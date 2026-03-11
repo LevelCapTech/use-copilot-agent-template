@@ -1,0 +1,86 @@
+name: E2E（Playwright ゲート）
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths-ignore:
+      - "mock/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-playwright-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  playwright-e2e:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, '🔬 E2E'))
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Fetch through merge-base
+        if: github.event_name == 'pull_request'
+        uses: fulcrumgenomics/fetch-through-merge-base@v1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Playwright browsers cache
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: playwright-${{ runner.os }}-e2e-chromium
+          restore-keys: |
+            playwright-${{ runner.os }}-e2e-chromium
+
+      - name: Report Playwright browsers cache
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Playwright cache hit"
+          else
+            echo "Playwright cache miss"
+          fi
+
+      - name: Install Playwright Browsers (Chromium)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+
+      - name: Test (E2E)
+        run: npm run test:e2e
+
+      - name: Report Playwright cache status (post)
+        if: always()
+        run: |
+          echo "Playwright cache path: $PLAYWRIGHT_BROWSERS_PATH"
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            echo "Playwright cache hit on restore"
+          else
+            echo "Playwright cache miss on restore"
+          fi
+          if [ -d "$PLAYWRIGHT_BROWSERS_PATH" ]; then
+            echo "Playwright cache size: $(du -sh "$PLAYWRIGHT_BROWSERS_PATH" | cut -f1)"
+            if [ "$(find "$PLAYWRIGHT_BROWSERS_PATH" -type f | head -n 1)" ]; then
+              echo "Playwright cache files detected"
+            else
+              echo "Playwright cache directory is empty"
+            fi
+          else
+            echo "Playwright cache directory missing"
+          fi

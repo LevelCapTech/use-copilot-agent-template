@@ -1,0 +1,4 @@
+/docs/draft/*.md
+/docs/draft/**/*.md
+!/docs/draft/readme.md
+

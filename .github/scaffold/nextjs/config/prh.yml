@@ -1,0 +1,8 @@
+version: 1
+rules:
+  - expected: ユーザー
+    patterns:
+      - /ユーザ(?!ー)/
+  - expected: インターフェース
+    patterns:
+      - インタフェース

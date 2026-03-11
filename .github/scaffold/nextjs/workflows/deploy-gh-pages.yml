@@ -1,0 +1,67 @@
+name: GitHub Pagesデプロイ（モックアプリ）
+
+on:
+  workflow_dispatch:
+    inputs:
+      mock_version:
+        description: "Deploy target mock version (e.g. v1)"
+        required: false
+        default: "v1"
+
+env:
+  MOCK_VERSION: ${{ github.event.inputs.mock_version || 'v1' }}
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: gh-pages-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mock/${{ env.MOCK_VERSION }}/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mock/${{ env.MOCK_VERSION }}/web
+        run: npm ci --legacy-peer-deps
+
+      - name: Build
+        working-directory: mock/${{ env.MOCK_VERSION }}/web
+        env:
+          VITE_BASE_PATH: /Agile-PMBOK-Assist/
+        run: npm run build
+
+      - name: Prepare gh-pages artifacts
+        working-directory: mock/${{ env.MOCK_VERSION }}/web
+        run: |
+          rm -rf dist-gh-pages
+          mkdir -p dist-gh-pages
+          if [ -f dist/client/index.html ]; then
+            cp -R dist/client/* dist-gh-pages/
+          elif [ -f dist/index.html ]; then
+            cp -R dist/* dist-gh-pages/
+          else
+            echo "index.html not found in dist/client or dist"
+            exit 1
+          fi
+          if [ -f dist-gh-pages/index.html ] && [ ! -f dist-gh-pages/404.html ]; then
+            cp dist-gh-pages/index.html dist-gh-pages/404.html
+          fi
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: mock/${{ env.MOCK_VERSION }}/web/dist-gh-pages
+          publish_branch: gh-pages

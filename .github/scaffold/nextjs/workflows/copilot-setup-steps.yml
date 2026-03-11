@@ -1,0 +1,37 @@
+name: "Copilot 環境準備"
+
+on:
+  workflow_dispatch:
+  # push: 西山がレビューで却下、文字化けしたらコメントアウト解除
+  # pull_request: 西山がレビューで却下、文字化けしたらコメントアウト解除
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache fontconfig (for Copilot agent)
+        id: cache-fontconfig
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/fontconfig
+          key: fontconfig-${{ runner.os }}-v1
+
+      - name: Echo cache status
+        run: |
+          if [ "${{ steps.cache-fontconfig.outputs.cache-hit }}" = "true" ]; then
+            echo "[INFO] fontconfig cache: HIT"
+          else
+            echo "[INFO] fontconfig cache: MISS"
+          fi
+
+      - name: Install Japanese fonts for Copilot agent
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            fonts-ipafont-gothic \
+            fonts-ipafont-mincho \
+            fonts-noto-cjk \
+            fonts-noto-color-emoji
+          fc-cache -f

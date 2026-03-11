@@ -1,0 +1,66 @@
+name: モックCI（React）
+
+on:
+  pull_request:
+    paths:
+      - "mock/**"
+  push:
+    branches: [main]
+    paths:
+      - "mock/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mock-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mock-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Lint mock (mock-specific config)
+        run: npx eslint --config eslint.config.mock.mjs mock/
+
+  mock-web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mock/v1/web/package-lock.json
+
+      - name: Verify lockfile
+        run: test -f mock/v1/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mock/v1/web
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck (mock/v1/web/tsconfig.json)
+        working-directory: mock/v1/web
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: mock/v1/web
+        run: npm run build

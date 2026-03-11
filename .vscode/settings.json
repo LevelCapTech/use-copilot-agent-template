@@ -6,4 +6,6 @@
   //   "editor.formatOnSave": true
   // },
   "editor.tabSize": 2,
+  "compareFolders.excludeFilter": [
+  ],
 }

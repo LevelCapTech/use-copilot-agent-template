@@ -15,7 +15,7 @@ jobs:
     # ストラテジー設定: マトリックス戦略を使用して、異なるファイル名でジョブを実行
     strategy:
       matrix:
-        filename: ["workflow-cleanup"] # 使用するファイル名を指定
+        filename: ["workflow-cleanup", "dependabot-yml-enable"] # 使用するファイル名を指定
     # 実行環境: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
