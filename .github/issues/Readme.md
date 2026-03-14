@@ -1,0 +1,1 @@
+# このフォルダは、github workflowからissueを登録するための作成済みissueデータ置き場です。
