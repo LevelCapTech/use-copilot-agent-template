@@ -804,6 +804,7 @@ flowchart TD
 
 ```mermaid
 classDiagram
+  direction TB
   %% TODO: 1つのクラス図で1ドメインを表現
   %% class DashboardPageData {
   %%   +header: DashboardHeaderModel
@@ -823,6 +824,7 @@ classDiagram
 
 ```mermaid
 classDiagram
+  direction TB
   %% TODO: 1つのクラス図で1ドメインを表現
   %% class DashboardPageData {
   %%   +header: DashboardHeaderModel
@@ -842,6 +844,7 @@ classDiagram
 
 ```mermaid
 classDiagram
+  direction TB
   %% TODO: 1つのクラス図で1ドメインを表現
   %% class DashboardPageData {
   %%   +header: DashboardHeaderModel
@@ -861,6 +864,7 @@ classDiagram
 
 ```mermaid
 classDiagram
+  direction TB
   %% TODO: 1つのクラス図で1ドメインを表現
   %% class DashboardPageData {
   %%   +header: DashboardHeaderModel
@@ -880,6 +884,7 @@ classDiagram
 
 ```mermaid
 classDiagram
+  direction TB
   %% TODO: 1つのクラス図で1ドメインを表現
   %% class DashboardPageData {
   %%   +header: DashboardHeaderModel
