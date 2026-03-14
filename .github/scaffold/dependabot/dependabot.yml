@@ -1,0 +1,62 @@
+# Dependabotの設定ファイル - 依存関係の自動更新
+version: 2
+updates:
+  # 1) Dev Container Features（.devcontainer/devcontainer.json の "features" 更新）
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "devcontainer"
+
+  # 2) GitHub Actions（.github/workflows の uses: を更新）
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:10"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # 3) Docker（Dockerfile / docker-compose などの FROM イメージ更新）
+  - package-ecosystem: "docker"
+    directory: "/.devcontainer"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/python/gmail"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:05"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # 4) Python（pip）: requirements.txt
+  - package-ecosystem: "pip"
+    directory: "/apps/python/gmail"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "10:00"
+      timezone: "Asia/Tokyo"
+    labels:
+      - "dependencies"
+      - "python"
